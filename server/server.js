@@ -1,28 +1,41 @@
-// CanWearProject/server/server.js
+// C:\Users\User\Desktop\CanWearProject-FIXED\server\server.js
 
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import nodemailer from "nodemailer";
+import { createClient } from "@supabase/supabase-js";
 
-// Node 20+ includes fetch globally.
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 8080;
-const apiBase = process.env.PAYPAL_API_BASE || "https://api-m.sandbox.paypal.com";
+
+const paypalApiBase =
+  process.env.PAYPAL_API_BASE || "https://api-m.sandbox.paypal.com";
 
 const allowedOrigins = (process.env.CLIENT_URL || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+
+const supabase =
+  supabaseUrl && supabaseSecretKey
+    ? createClient(supabaseUrl, supabaseSecretKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false
+        }
+      })
+    : null;
+
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin) {
-        return callback(null, true);
-      }
+      if (!origin) return callback(null, true);
 
       if (!allowedOrigins.length || allowedOrigins.includes(origin)) {
         return callback(null, true);
@@ -69,7 +82,7 @@ async function getPayPalAccessToken() {
   const secret = requireEnv("PAYPAL_CLIENT_SECRET");
   const auth = Buffer.from(`${clientId}:${secret}`).toString("base64");
 
-  const response = await fetch(`${apiBase}/v1/oauth2/token`, {
+  const response = await fetch(`${paypalApiBase}/v1/oauth2/token`, {
     method: "POST",
     headers: {
       Authorization: `Basic ${auth}`,
@@ -82,7 +95,9 @@ async function getPayPalAccessToken() {
 
   if (!response.ok) {
     throw new Error(
-      data.error_description || data.error || "Could not get PayPal access token."
+      data.error_description ||
+        data.error ||
+        "Could not get PayPal access token."
     );
   }
 
@@ -95,15 +110,14 @@ async function sendOrderEmail({ to, subject, html }) {
   const smtpPass = process.env.SMTP_PASS;
 
   if (!smtpHost || !smtpUser || !smtpPass || !to) {
+    console.warn("SMTP not configured. Email skipped.");
     return;
   }
 
-  const smtpPort = Number(process.env.SMTP_PORT || 587);
-
   const transporter = nodemailer.createTransport({
     host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: Number(process.env.SMTP_PORT || 587) === 465,
     auth: {
       user: smtpUser,
       pass: smtpPass
@@ -135,11 +149,46 @@ function buildShippingHtml(shippingInfo = {}) {
   `;
 }
 
+async function saveOrderToSupabase({
+  paypalOrderId,
+  captureData,
+  cart,
+  total,
+  email,
+  shippingInfo
+}) {
+  if (!supabase) {
+    console.warn("Supabase is not configured. Order was not saved.");
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("orders")
+    .insert({
+      paypal_order_id: paypalOrderId,
+      customer_email: email || null,
+      total: Number(total),
+      status: "paid",
+      cart,
+      shipping_info: shippingInfo,
+      paypal_capture: captureData
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Supabase order insert error:", error);
+    return null;
+  }
+
+  return data;
+}
+
 app.get("/", (_, res) => {
   res.json({
     ok: true,
     service: "CanWear server",
-    health: "/api/health"
+    routes: ["/api/health", "/api/supabase/health"]
   });
 });
 
@@ -147,8 +196,41 @@ app.get("/api/health", (_, res) => {
   res.json({
     ok: true,
     service: "CanWear server",
-    paypalMode: apiBase.includes("sandbox") ? "sandbox" : "live"
+    paypalMode: paypalApiBase.includes("sandbox") ? "sandbox" : "live",
+    supabaseConfigured: Boolean(supabase),
+    clientUrl: process.env.CLIENT_URL || null
   });
+});
+
+app.get("/api/supabase/health", async (_, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({
+        ok: false,
+        error:
+          "Supabase is not configured. Check SUPABASE_URL and SUPABASE_SECRET_KEY."
+      });
+    }
+
+    const { error } = await supabase.from("orders").select("id").limit(1);
+
+    if (error) {
+      return res.status(500).json({
+        ok: false,
+        error: error.message
+      });
+    }
+
+    return res.json({
+      ok: true,
+      message: "Supabase connection works."
+    });
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      error: error.message || "Supabase health check failed."
+    });
+  }
 });
 
 app.post("/api/paypal/create-order", async (req, res) => {
@@ -163,7 +245,7 @@ app.post("/api/paypal/create-order", async (req, res) => {
       });
     }
 
-    const response = await fetch(`${apiBase}/v2/checkout/orders`, {
+    const response = await fetch(`${paypalApiBase}/v2/checkout/orders`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -224,40 +306,55 @@ app.post("/api/paypal/capture-order", async (req, res) => {
       });
     }
 
-    const response = await fetch(`${apiBase}/v2/checkout/orders/${orderID}/capture`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
+    const response = await fetch(
+      `${paypalApiBase}/v2/checkout/orders/${orderID}/capture`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        }
       }
-    });
+    );
 
-    const data = await response.json();
+    const captureData = await response.json();
 
     if (!response.ok) {
       return res.status(400).json({
-        error: data.message || data.error || "Could not capture PayPal order.",
-        details: data
+        error:
+          captureData.message ||
+          captureData.error ||
+          "Could not capture PayPal order.",
+        details: captureData
       });
     }
 
     const shippingInfo = req.body.shippingInfo || {};
     const total = normalizeMoney(req.body.total || 0);
+    const email = req.body.email || shippingInfo.email || null;
+    const cart = Array.isArray(req.body.cart) ? req.body.cart : [];
 
-    const itemsHtml = Array.isArray(req.body.cart)
-      ? req.body.cart
-          .map((item) => {
-            const name = escapeHtml(item.name || "Item");
-            const quantity = escapeHtml(item.quantity || 1);
-            return `<li>${name} x ${quantity}</li>`;
-          })
-          .join("")
-      : "";
+    const savedOrder = await saveOrderToSupabase({
+      paypalOrderId: orderID,
+      captureData,
+      cart,
+      total,
+      email,
+      shippingInfo
+    });
+
+    const itemsHtml = cart
+      .map((item) => {
+        const name = escapeHtml(item.name || "Item");
+        const quantity = escapeHtml(item.quantity || 1);
+        return `<li>${name} x ${quantity}</li>`;
+      })
+      .join("");
 
     const shippingHtml = buildShippingHtml(shippingInfo);
 
     await sendOrderEmail({
-      to: req.body.email,
+      to: email,
       subject: "Your CanWear order is confirmed",
       html: `
         <h2>Thanks for your order.</h2>
@@ -282,7 +379,11 @@ app.post("/api/paypal/capture-order", async (req, res) => {
       });
     }
 
-    return res.json(data);
+    return res.json({
+      ok: true,
+      paypal: captureData,
+      supabaseOrder: savedOrder
+    });
   } catch (error) {
     console.error("Capture PayPal order error:", error);
     return res.status(500).json({
@@ -293,10 +394,12 @@ app.post("/api/paypal/capture-order", async (req, res) => {
 
 app.use((req, res) => {
   res.status(404).json({
-    error: `Route not found: ${req.method} ${req.originalUrl}`
+    ok: false,
+    error: `Route not found: ${req.method} ${req.originalUrl}`,
+    availableRoutes: ["/", "/api/health", "/api/supabase/health"]
   });
 });
 
-app.listen(port, () => {
+app.listen(port, "0.0.0.0", () => {
   console.log(`CanWear server running on port ${port}`);
 });
