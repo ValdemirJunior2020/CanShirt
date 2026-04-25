@@ -1,0 +1,150 @@
+/* C:\Users\Valdemir Goncalves\Desktop\tee-pot\CanShirt\client\src\components\navbar.css */
+.cw-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
+  backdrop-filter: blur(18px);
+  background: rgba(255, 248, 246, 0.88);
+  border-bottom: 1px solid rgba(234, 217, 214, 0.9);
+}
+
+.cw-nav {
+  width: 100%;
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+}
+
+.cw-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.cw-brand-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+}
+
+.cw-brand-text {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #2a2333;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.cw-nav-links {
+  display: none;
+  align-items: center;
+  gap: 18px;
+}
+
+.cw-nav-link {
+  color: #6d6678;
+  text-decoration: none;
+  font-weight: 600;
+  position: relative;
+  padding: 8px 4px;
+  transition: color 0.18s ease;
+}
+
+.cw-nav-link:hover,
+.cw-nav-link.active {
+  color: #2a2333;
+}
+
+.cw-nav-link.active::after,
+.cw-nav-link:hover::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff7fab, #9c7bff);
+}
+
+.cw-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.cw-user-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cw-user-name {
+  display: none;
+  color: #6d6678;
+  font-weight: 600;
+}
+
+.cw-cart-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #ff7fab, #9c7bff);
+  color: #ffffff;
+  padding: 11px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 18px 50px rgba(152, 120, 140, 0.12);
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.cw-cart-pill:hover {
+  transform: translateY(-1px);
+  opacity: 0.96;
+}
+
+.cw-cart-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 0.85rem;
+}
+
+@media (min-width: 768px) {
+  .cw-nav-links {
+    display: flex;
+  }
+
+  .cw-user-name {
+    display: inline;
+  }
+}
+
+@media (max-width: 767px) {
+  .cw-nav {
+    min-height: 72px;
+  }
+
+  .cw-brand-logo {
+    width: 46px;
+    height: 46px;
+  }
+
+  .cw-brand-text {
+    font-size: 1.1rem;
+  }
+}

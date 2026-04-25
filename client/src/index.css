@@ -1,0 +1,23 @@
+/* C:\Users\User\Downloads\canwear-project-updated\CanWearProject\client\src\index.css */
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-width: 320px;
+  display: block;
+  background: #fff8f6;
+}
+
+#root {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}

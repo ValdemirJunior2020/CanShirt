@@ -1,0 +1,23 @@
+[
+  {
+    "id": "can-1",
+    "name": "Pastel Smile Drop",
+    "price": 35,
+    "image": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80",
+    "description": "Soft tee inside a collectible pastel can."
+  },
+  {
+    "id": "can-2",
+    "name": "Cloud Pop Edition",
+    "price": 45,
+    "image": "https://images.unsplash.com/photo-1503341504253-dff4815485f1?auto=format&fit=crop&w=900&q=80",
+    "description": "Cute pop-art can label with premium cotton tee."
+  },
+  {
+    "id": "can-3",
+    "name": "Candy Street Pack",
+    "price": 55,
+    "image": "https://images.unsplash.com/photo-1523398002811-999ca8dec234?auto=format&fit=crop&w=900&q=80",
+    "description": "Collector can with elevated print finish."
+  }
+]
